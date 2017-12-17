@@ -1,0 +1,236 @@
+#!/bin/bash
+#
+#  rsync-time-machine - shell script template for rsync-based backups
+#
+#  Copyright (C) 2014, 2015, 2017 Alexander Yermolenko
+#  <yaa.mbox@gmail.com>
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# WARNING! No relative path in BACKUPROOT is allowed
+# To backup just contents WHAT2BACKUP should end with /
+
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+BACKUPROOT="$SCRIPTDIR"
+WHAT2BACKUP="/srv/nspawn/debian-9/"
+
+echo $BACKUPROOT
+echo $WHAT2BACKUP
+
+die()
+{
+    gui_wait_notice_end
+    msg=${1:-"Unknown Error"}
+    echo "ERROR: $msg" 1>&2
+    [ $gui -eq 1 ] && \
+        zenity --info --title "Ошибка!" --text="ERROR: $msg"
+    exit 1
+}
+
+goodbye()
+{
+    gui_wait_notice_end
+    msg=${1:-"Cancelled by user"}
+    echo "INFO: $msg" 1>&2
+    [ $gui -eq 1 ] && \
+        zenity --info --title "Информация!" --text="INFO: $msg"
+    exit 1
+}
+
+info()
+{
+    gui_wait_notice_end
+    msg=${1:-"Info"}
+    echo "INFO: $msg" 1>&2
+    [ $gui -eq 1 ] && \
+        zenity --info --title "Информация!" --text="$msg"
+    exit 1
+}
+
+if hash zenity 2>/dev/null; then
+    gui=1
+else
+    gui=0
+fi
+
+gui=0
+
+gui_wait_notice_start()
+{
+    if [ $gui -eq 1 ]
+    then
+        yes | zenity --progress --pulsate --no-cancel --auto-close --title "Внимание!" --text="Выполняю резервное копирование. Ждите...\n" &
+        gui_pid=$!
+        echo "gui_pid : $gui_pid"
+    fi
+}
+
+gui_wait_notice_end()
+{
+    if [ $gui -eq 1 ]
+    then
+        gui_name_by_pid=$( ps -p $gui_pid -o comm= )
+        echo "gui_name_by_pid : $gui_name_by_pid"
+        if [ "x$gui_name_by_pid" = "xzenity" ]
+        then
+            kill $gui_pid
+        fi
+    fi
+}
+
+gui_wait_notice_start
+
+date=`date "+%Y%m%d-%H%M%S"`
+
+usage()
+{
+    echo "usage: $0 [[[--no-test] [--another-option] [--plain-backup] [--time-machine]] | [-h]]"
+}
+
+test=1
+plain_backup=0
+time_machine=1
+another_option=0
+
+while [ "$1" != "" ]; do
+    case $1 in
+        --no-test )
+            test=0
+            ;;
+        --another-option )
+            another_option=1
+            ;;
+        --plain-backup )
+            plain_backup=1
+            time_machine=0
+            ;;
+        --time-machine )
+            plain_backup=0
+            time_machine=1
+            ;;
+        -h | --help )
+            usage
+            gui_wait_notice_end
+            exit
+            ;;
+        * )
+            usage
+            gui_wait_notice_end
+            exit 1
+    esac
+    shift
+done
+
+[ $plain_backup -eq 1 ] && [ $time_machine -eq 1 ] && \
+    die "Plain and Time Machine modes were specified simultaneously"
+
+[ $plain_backup -eq 0 ] && [ $time_machine -eq 0 ] && \
+    plain_backup=1
+
+read -d '' excluded <<"EOF"
+/var/cache/apt/archives/
+/home/user/.cache/
+/home/user/.dropbox*
+/home/user/Dropbox
+/home/user/.thumbnails/
+/home/user/apps/archive/
+EOF
+
+rsync_filter1='dir-merge /.essential-backup.rsync-filter'
+rsync_filter2='dir-merge /.partial-backup.rsync-filter'
+rsync_filter3='dir-merge /.full-backup.rsync-filter'
+
+time_machine()
+{
+    echo "I am going to perform 'Time Machine' backup ..."
+    sleep 5
+    echo "'Time Machine' backup started ..."
+    if [ $test -eq 1 ]
+    then
+        # Dry Run
+        echo "Doing DRY RUN! No actual backup!!!" >&2
+        echo "$excluded" | \
+            rsync -aHAXixv -n --stats --exclude-from=- \
+                  --filter="$rsync_filter1" \
+                  --filter="$rsync_filter2" \
+                  --filter="$rsync_filter3" \
+                  --link-dest="$BACKUPROOT/current" -- \
+                  "$WHAT2BACKUP" "$BACKUPROOT/.$date"
+    else
+        [ -d "$BACKUPROOT" ] || mkdir -p "$BACKUPROOT" || \
+            die "Can't create destination dir. Exiting."
+
+        echo "$excluded" | \
+            rsync -aHAXixv --stats --exclude-from=- \
+                  --filter="$rsync_filter1" \
+                  --filter="$rsync_filter2" \
+                  --filter="$rsync_filter3" \
+                  --link-dest="$BACKUPROOT/current" -- \
+                  "$WHAT2BACKUP" "$BACKUPROOT/.$date" \
+                  > "$BACKUPROOT/.$date.stdout" 2>"$BACKUPROOT/.$date.stderr" && \
+            rm -f "$BACKUPROOT/current" && \
+            ln -s ".$date" "$BACKUPROOT/current" && \
+            echo "Backup completed successfully." && \
+            touch "$BACKUPROOT/.$date.completed" && \
+            info "Резервное копирование завершено.\n\nВсё в порядке." || \
+                info "Резервное копирование не было завершено из-за какой-то ошибки.\n\nСообщите об этом системному администратору."
+    fi
+}
+
+plain_backup()
+{
+    echo "I am going to perform 'Plain' backup ..."
+    sleep 5
+    echo "'Plain' backup started ..."
+    if [ $test -eq 1 ]
+    then
+        # Dry Run
+        echo "Doing DRY RUN! No actual backup!!!" >&2
+        echo "$excluded" | \
+            rsync -aHAXixv -n --stats --exclude-from=- \
+                  --filter="$rsync_filter1" \
+                  --filter="$rsync_filter2" \
+                  --filter="$rsync_filter3" \
+                  -- \
+                  "$WHAT2BACKUP" "$BACKUPROOT/data"
+    else
+        [ -d "$BACKUPROOT" ] || mkdir -p "$BACKUPROOT" || \
+            die "Can't create destination dir. Exiting."
+
+        echo "$excluded" | \
+            rsync -aHAXixv --stats --exclude-from=- \
+                  --filter="$rsync_filter1" \
+                  --filter="$rsync_filter2" \
+                  --filter="$rsync_filter3" \
+                  -- \
+                  "$WHAT2BACKUP" "$BACKUPROOT/data" \
+                  > "$BACKUPROOT/.$date.stdout" 2>"$BACKUPROOT/.$date.stderr" && \
+            echo "Backup completed successfully." && \
+            touch "$BACKUPROOT/.$date.completed" && \
+            info "Резервное копирование завершено.\n\nВсё в порядке." || \
+                info "Резервное копирование не было завершено из-за какой-то ошибки.\n\nСообщите об этом системному администратору."
+    fi
+}
+
+[ $plain_backup -eq 1 ] && \
+    plain_backup
+
+[ $time_machine -eq 1 ] && \
+    time_machine
+
+sync
+
+gui_wait_notice_end
