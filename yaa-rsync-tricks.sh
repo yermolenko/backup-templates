@@ -29,6 +29,8 @@ rsync_backup_filter1='dir-merge /.essential-backup.rsync-filter'
 rsync_backup_filter2='dir-merge /.partial-backup.rsync-filter'
 rsync_backup_filter3='dir-merge /.full-backup.rsync-filter'
 
+time_machine_dirprefix=""
+
 time_machine_backup()
 {
     # To backup just contents what2backup should end with /
@@ -84,7 +86,7 @@ time_machine_backup()
     rsync_command+=(--bwlimit="$rsync_bwlimit")
     rsync_command+=(--)
     rsync_command+=("$what2backup")
-    rsync_command+=("$backuproot/$backup_item_name/.$date")
+    rsync_command+=("$backuproot/$backup_item_name/$time_machine_dirprefix$date")
 
     if [ $test -eq 1 ]
     then
@@ -95,7 +97,7 @@ time_machine_backup()
             "${rsync_command[@]}" \
                 > "$backuproot/$backup_item_name/.$date.stdout" 2>"$backuproot/$backup_item_name/.$date.stderr" && \
             rm -f "$backuproot/$backup_item_name/current" && \
-            ln -s ".$date" "$backuproot/$backup_item_name/current" && \
+            ln -s "$time_machine_dirprefix$date" "$backuproot/$backup_item_name/current" && \
             info "Backup completed successfully." && \
             touch "$backuproot/$backup_item_name/.$date.completed" && \
             info "Backup completed successfully. Everything is OK" || \

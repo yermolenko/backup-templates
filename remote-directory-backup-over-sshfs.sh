@@ -156,6 +156,8 @@ lost\+found
 /.mozilla*
 EOF
 
+# time_machine_dirprefix="."
+
 info "=== Performing remote directory backup ==="
 time_machine_backup_remotedir_over_sshfs "/home/user/" "$excludes" home_user
 # plain_backup_remotedir_over_sshfs "/home/user/" "$excludes" home_user

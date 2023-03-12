@@ -128,6 +128,8 @@ lost\+found
 /.mozilla*
 EOF
 
+# time_machine_dirprefix="."
+
 info "=== Performing local directory backup ==="
 time_machine_backup "/home/user/" "$excludes" home_user
 # plain_backup "/home/user/" "$excludes" home_user

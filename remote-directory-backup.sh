@@ -155,6 +155,7 @@ lost\+found
 EOF
 
 rsync_bwlimit="3000"
+time_machine_dirprefix="."
 
 info "=== Performing remote directory backup ==="
 time_machine_backup_remotedir "/home/user/" "$excludes" home_user
