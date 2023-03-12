@@ -46,4 +46,65 @@ test_ssh_command()
     "${ssh_command[@]}" hostname || die "Cannot test ssh"
 }
 
+run_via_ssh_sh_c()
+{
+    local sh_c_command=("$@")
+
+    # debug: passing double quoted sed expressions with quoted singe quotes does not work
+
+    require_var ssh_command
+
+    info "=== Executing command via ssh:"
+
+    info "Command is an array of ${#sh_c_command[@]} elements"
+
+    info "Command for remote 'sh -c' will be:"
+    info "${sh_c_command[@]}"
+
+    info "Running the command ..."
+    "${ssh_command[@]}" \
+        sh -c \
+        "'"${sh_c_command[@]}"'"
+}
+
+run_via_ssh()
+{
+    local command=("$@")
+
+    require_var ssh_command
+
+    info "=== Executing command via ssh:"
+
+    info "Command is an array of ${#command[@]} elements"
+
+    info "Command for ssh will be:"
+    info "${command[@]}"
+
+    info "Running the command ..."
+    "${ssh_command[@]}" \
+        "${command[@]}"
+}
+
+perform_extra_ssh_command_tests()
+{
+    info "Testing ssh (remote hostname): "
+    run_via_ssh hostname || die "Cannot test ssh"
+
+    info "Testing ssh (passing 'uname -a' as a string to run_via_ssh_sh_c):"
+    sh_c_command="uname -a"
+    run_via_ssh_sh_c "${sh_c_command[@]}" || die "Cannot test ssh"
+
+    info "Testing ssh (passing 'uname -a' as a string to run_via_ssh):"
+    sh_c_command="uname -a"
+    run_via_ssh "${sh_c_command[@]}" || die "Cannot test ssh"
+
+    info "Testing ssh (passing 'uname -a' as an array to run_via_ssh_sh_c):"
+    sh_c_command=(uname -a)
+    run_via_ssh_sh_c "${sh_c_command[@]}" || die "Cannot test ssh"
+
+    info "Testing ssh (passing 'uname -a' as an array to run_via_ssh):"
+    sh_c_command=(uname -a)
+    run_via_ssh "${sh_c_command[@]}" || die "Cannot test ssh"
+}
+
 # echo "yaa-ssh-tricks-basic.sh is a library"
