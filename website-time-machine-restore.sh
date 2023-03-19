@@ -106,7 +106,7 @@ read -d '' restore_excludes <<"EOF"
 EOF
 
 RSYNC_RSH="${ssh_command_wo_user_at_host[@]}" \
-         directory_restore "$backuproot/wwwroot/$time_machine_dirprefix$backuptag/" "$user@$host:$sitewwwroot" "$restore_excludes"
+         rsync_restore "$backuproot/wwwroot/$time_machine_dirprefix$backuptag/" "$user@$host:$sitewwwroot" "$restore_excludes"
 
 if [ $test -eq 1 ]
 then

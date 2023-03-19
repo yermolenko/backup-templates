@@ -208,7 +208,7 @@ plain_backup_remotedir()
              plain_backup "$user@$host:$what2backup" "$backup_excludes" "$backup_item_name"
 }
 
-directory_restore()
+rsync_restore()
 {
     local what_to_restore=${1:?what_to_restore dir is required}
     local where_to_restore=${2:?where_to_restore dir is required}
@@ -238,15 +238,6 @@ directory_restore()
     rsync_command+=(--)
     rsync_command+=("$what_to_restore")
     rsync_command+=("$where_to_restore")
-
-    # if [ $test -eq 1 ]
-    # then
-    #     # [ -d "$where_to_restore" ] || \
-    #     #     die "Destination dir does not exist. Exiting."
-    # else
-    #     # [ -d "$where_to_restore" ] || mkdir -p "$where_to_restore" || \
-    #     #     die "Can't create destination dir. Exiting."
-    # fi
 
     echo "$restore_excludes" | \
         "${rsync_command[@]}" \
