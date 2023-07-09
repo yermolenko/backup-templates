@@ -45,7 +45,7 @@ time_machine_backup_remotedir_over_sshfs()
     if [ ${#extra_ssh_options[@]} -eq 0 ]; then
         ssh_command_option_for_sshfs=()
     else
-        ssh_command_option_for_sshfs=(-o ssh_command="ssh ${extra_ssh_options[@]}")
+        ssh_command_option_for_sshfs=(-o ssh_command="ssh ${extra_ssh_options[*]}")
     fi
 
     info "extra_sshfs_options: ${extra_sshfs_options[@]}"
